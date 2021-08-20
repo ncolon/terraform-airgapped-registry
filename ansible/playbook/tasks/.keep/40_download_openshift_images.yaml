@@ -1,0 +1,98 @@
+- name: extract openshift client
+  unarchive:
+    src: "{{ data_dir }}/artifacts/downloads/openshift-client-linux.tar.gz"
+    dest: /usr/local/bin/
+    exclude: 
+     - README.md
+    remote_src: yes
+
+- name: create local directories
+  file:
+    path: "{{ data_dir }}/artifacts/mirror/{{ item }}"
+    state: directory
+    mode: '0755'
+    owner: "{{ ansible_user }}"
+    group: "{{ ansible_user }}"
+  with_items:
+    - ocp4
+    - olm
+
+- name: set_fact pull_secret
+  set_fact:
+    pull_secret: "{{ openshift_pull_secret | b64decode | from_json}}"
+
+- name: set_fact userpass
+  set_fact:
+    userpass: admin:{{ registry_password }}
+
+- name: set_fact encoded_userpass
+  set_fact:
+    encoded_userpass: "{{ userpass | b64encode }}"
+
+- name: set_fact reg_auth
+  set_fact:
+    reg_auth: >
+      {
+        "{{ registry_host }}": {
+          "auth": "{{ encoded_userpass }}",
+          "email": "admin@registry"
+        }
+      }
+
+- name: set_fact auths
+  set_fact:
+    auths: "{{pull_secret.auths | combine(reg_auth)}}"
+
+- name: write combined pull-secret
+  copy:
+    dest: "{{ data_dir }}/artifacts/mirror/pull-secret.txt"
+    content: '{"auths":{{ auths }} }'
+
+- name: set_fact openshift_minor_version
+  set_fact:
+    openshift_minor_version: "{{openshift_version.split('.')[:-1]|join('.')}}"
+  when: '"." in openshift_version'
+
+- name: set_fact openshift_minor_version
+  set_fact:
+    openshift_minor_version: "{{openshift_version.split('-')[:1]"
+  when: '"-" in openshift_version'
+
+# - name: "!!!!!!!!!!!!!!!!!!!! DO NOT CLOSE YOUR SESSION !!!!!!!!!!!!!!!!!!!!"
+#   debug:
+#     msg: "Mirroring OCP and OLM Images:  This may take up to 5 hours."
+  
+- name: download openshift platform images
+  shell:
+    cmd: |
+      oc adm release mirror -a {{ data_dir }}/artifacts/mirror/pull-secret.txt \
+        --to-dir={{ data_dir }}/artifacts/mirror/ocp4 \
+        quay.io/{{openshift_product_repo}}/{{openshift_release_name}}:{{openshift_version}}-{{openshift_architecture}}
+  async: 18000
+  poll: 0
+  register: ocp_download 
+
+- name: download ocp images - still running
+  async_status:
+    jid: "{{ ocp_download.ansible_job_id }}"
+  register: ocp_result
+  until: ocp_result.finished
+  retries: 30000
+
+- name: download olm images
+  shell:
+    cmd: |
+      oc adm catalog mirror -a {{ data_dir }}/artifacts/mirror/pull-secret.txt registry.redhat.io/redhat/redhat-operator-index:v{{openshift_minor_version}} file:///local/index
+    chdir: "{{ data_dir }}/artifacts/mirror/olm"
+  async: 18000
+  poll: 0
+  register: olm_download
+  when: mirror_olm|bool
+
+- name: download olm images - still running
+  async_status:
+    jid: "{{ olm_download.ansible_job_id }}"
+  register: olm_result
+  until: olm_result.finished
+  retries: 30000
+  when: mirror_olm|bool

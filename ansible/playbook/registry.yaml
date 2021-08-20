@@ -1,0 +1,17 @@
+- hosts: registry
+  tasks:
+    - name: mount {{ data_dir }} disk
+      become: true
+      import_tasks: tasks/common/10_configure_storage.yaml
+      vars:
+        - name: "{{ volume_name }}"
+        - device: "{{ disk_device }}"
+        - fstype: xfs
+    - name: update certificate trust store
+      become: true
+      import_tasks: tasks/common/20_update_trust_store.yaml
+    - name: install artifacts
+      import_tasks: tasks/registry/10_install_artifacts.yaml
+      vars:
+        - harbor_host: "{{ registry_host }}"
+        - certificate: "registry"

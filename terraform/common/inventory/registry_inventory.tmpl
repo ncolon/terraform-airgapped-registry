@@ -1,0 +1,22 @@
+[all:children]
+bastion
+registry
+
+[all:vars]
+ansible_user=${username}
+ansible_ssh_common_args='-o StrictHostKeyChecking=no -o IdentitiesOnly=yes'
+ansible_ssh_private_key_file="~/.ssh/id_rsa"
+disk_device=${disk_device}
+volume_name=${volume_name}
+data_dir=${data_dir}
+ca_path_redhat=/etc/pki/ca-trust/source/anchors
+ca_path_debian=/usr/local/share/ca-certificates
+registry_password=${registry_password}
+platform=${platform}
+
+
+[bastion]
+${bastion_host}
+
+[registry]
+${registry_host}

@@ -1,0 +1,26 @@
+[all:children]
+bastion
+registry
+
+[all:vars]
+ansible_user=${username}
+ansible_ssh_common_args='-o StrictHostKeyChecking=no -o IdentitiesOnly=yes'
+ansible_ssh_private_key_file="~/.ssh/id_rsa"
+volume_name=${volume_name}
+disk_device=${disk_device}
+data_dir=${data_dir}
+bastion_host_public=${bastion_host_public}
+ca_path_redhat=/etc/pki/ca-trust/source/anchors
+ca_path_debian=/usr/local/share/ca-certificates
+compose_version=${compose_version}
+harbor_version=${harbor_version}
+openshift_version=${openshift_version}
+cloudctl_version=${cloudctl_version}
+platform=${platform}
+
+
+[bastion]
+${bastion_host}
+
+[registry]
+${registry_host}

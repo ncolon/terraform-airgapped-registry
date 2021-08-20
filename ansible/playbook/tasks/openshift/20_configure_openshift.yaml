@@ -1,0 +1,73 @@
+- name: set_fact kubeconfig azure
+  set_fact:
+    KUBECONFIG: "{{ cluster_dir.path }}/auth/kubeconfig"
+  when: platform == "azure"
+
+- name: set_fact kubeconfig roks
+  set_fact:
+    KUBECONFIG: "/home/{{ ansible_user }}/.kube/config"
+  when: platform == "roks"
+
+- name: create cluster folder
+  file:
+    path: "/home/{{ ansible_user }}/cluster"
+    state: directory
+    mode: '0755'
+    owner: "{{ ansible_user }}"
+    group: "{{ ansible_user }}"
+  register: cluster_dir
+
+- name: create registry-ca-bundle configmap on ROKS
+  template: 
+    src: templates/ca_bundle_configmap.yaml.j2
+    dest: /home/{{ ansible_user }}/ca_bundle_configmap.yaml
+  when: platform == "roks"
+
+- name: apply registry-ca-bundle configmap on ROKS
+  shell:
+    cmd: |
+      oc apply -f /home/{{ ansible_user }}/ca_bundle_configmap.yaml
+  when: platform == "roks"
+
+- name: add additionalTrustedCA to openshift image cluster
+  shell:
+    cmd: |
+      oc patch image.config.openshift.io cluster --type json -p '[{"op": "add", "path": "/spec/additionalTrustedCA/name", "value": "registry-ca-bundle"}]'
+  environment:
+    KUBECONFIG: "{{ KUBECONFIG }}"
+  when: platform == "roks"
+
+- name: disable OperatorHub
+  shell:
+    cmd: |
+      oc patch OperatorHub cluster --type json -p '[{"op": "add", "path": "/spec/disableAllDefaultSources", "value": true}]'
+  environment:
+    KUBECONFIG: "{{ KUBECONFIG }}"
+
+- name: wait for /home/{{ ansible_user }}/manifests-redhat-operator-index/catalogSource.yaml to be created
+  wait_for:
+    path: /home/{{ ansible_user }}/manifests-redhat-operator-index/catalogSource.yaml
+    state: present
+  when: mirror_olm|bool
+
+- name: create mirrored OperatorHub catalogSource and imageContentSourcePolicy
+  shell:
+    cmd: |
+      oc apply -f /home/{{ ansible_user }}/manifests-redhat-operator-index/
+  environment:
+    KUBECONFIG: "{{ KUBECONFIG }}"
+  when: mirror_olm|bool
+
+- name: create cluster upgrade ImageContentSourcePolicy yaml file
+  template:
+    src: templates/imageContentSourcePolicy.yaml.j2
+    dest: /home/{{ ansible_user }}/upgradeImageContentSourcePolicy.yaml
+  when: mirror_platform|bool
+
+- name: apply cluster upgrade ImageContentSourcePolicy yaml file
+  shell:
+    cmd: |
+      oc apply -f /home/{{ ansible_user }}/upgradeImageContentSourcePolicy.yaml
+  environment:
+    KUBECONFIG: "{{ KUBECONFIG }}"
+  when: mirror_platform|bool

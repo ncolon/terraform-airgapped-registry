@@ -1,0 +1,128 @@
+# - name: extract openshift client
+#   unarchive:
+#     src: "{{ data_dir }}/artifacts/downloads/openshift-client-linux.tar.gz"
+#     dest: /usr/local/bin/
+#     exclude: 
+#      - README.md
+#     remote_src: yes
+
+# - name: create local directories
+#   file:
+#     path: "{{ data_dir }}/artifacts/mirror/{{ item }}"
+#     state: directory
+#     mode: '0755'
+#     owner: "{{ ansible_user }}"
+#     group: "{{ ansible_user }}"
+#   with_items:
+#     - ocp4
+#     - olm
+
+- name: set_fact pull_secret
+  set_fact:
+    pull_secret: "{{ openshift_pull_secret | b64decode | from_json}}"
+
+- name: set_fact userpass
+  set_fact:
+    userpass: admin:{{ registry_password }}
+
+- name: set_fact encoded_userpass
+  set_fact:
+    encoded_userpass: "{{ userpass | b64encode }}"
+
+- name: set_fact reg_auth
+  set_fact:
+    reg_auth: >
+      {
+        "{{ groups['registry'][0]  }}": {
+          "auth": "{{ encoded_userpass }}",
+          "email": "admin@registry"
+        }
+      }
+
+- name: set_fact auths
+  set_fact:
+    auths: "{{pull_secret.auths | combine(reg_auth)}}"
+
+- name: write combined pull-secret
+  copy:
+    dest: "/home/{{ ansible_user }}/pull-secret.txt"
+    content: '{"auths":{{ auths }} }'
+
+- name: set_fact openshift_minor_version
+  set_fact:
+    openshift_minor_version: "{{openshift_version.split('.')[:-1]|join('.')}}"
+  when: '"." in openshift_version'
+
+- name: set_fact openshift_minor_version
+  set_fact:
+    openshift_minor_version: "{{openshift_version.split('-')[:1]"
+  when: '"-" in openshift_version'
+
+- name: set_fact redhatio_auth
+  set_fact:
+    redhatio_auth: "{{ pull_secret | json_query('auths.\"registry.redhat.io\".auth') | b64decode | split(':') }}"
+
+- name: set_fact redhatio_username
+  set_fact:
+    redhatio_username: "{{ redhatio_auth.0 }}"
+
+- name: set_fact redhatio_password
+  set_fact:
+    redhatio_password: "{{ redhatio_auth.1 }}"
+
+# - name: "!!!!!!!!!!!!!!!!!!!! DO NOT CLOSE YOUR SESSION !!!!!!!!!!!!!!!!!!!!"
+#   debug:
+#     msg: "Mirroring OCP and OLM Images:  This may take up to 5 hours."
+  
+- name: mirror openshift platform images
+  shell:
+    cmd: |
+      oc adm release mirror -a /home/{{ ansible_user }}/pull-secret.txt \
+        --from=quay.io/{{openshift_product_repo}}/{{openshift_release_name}}:{{openshift_version}}-{{openshift_architecture}} \
+        --to={{ groups['registry'][0]  }}/ocp4/openshift4 \
+        --to-release-image={{ groups['registry'][0]  }}/ocp4/openshift4:{{openshift_version}}-{{openshift_architecture}}
+  async: 18000
+  poll: 0
+  register: ocp_mirror 
+  when: mirror_platform|bool
+
+- name: mirror ocp images - still running
+  async_status:
+    jid: "{{ ocp_mirror.ansible_job_id }}"
+  register: ocp_result
+  until: ocp_result.finished
+  retries: 30000
+  when: mirror_platform|bool
+
+- name: prune olm catalog
+  shell:
+    cmd: |
+      podman login registry.redhat.io -u '{{ redhatio_username }}' -p '{{ redhatio_password }}'
+      podman login {{ groups['registry'][0]  }} -u admin -p '{{ registry_password }}'
+      opm index prune \
+        -f registry.redhat.io/redhat/redhat-operator-index:v{{ openshift_minor_version }} \
+        -p {{ keep_operators | join(",") }} \
+        -t {{ groups['registry'][0]  }}/olm/redhat-operator-index:v{{ openshift_minor_version}}
+      podman push {{ groups['registry'][0]  }}/olm/redhat-operator-index:v{{ openshift_minor_version}}
+  when: mirror_olm|bool
+
+- name: mirror olm images
+  shell:
+    cmd: |
+      oc adm catalog mirror \
+        -a /home/{{ ansible_user }}/pull-secret.txt \
+        --to-manifests=/home/{{ ansible_user }}/manifests-redhat-operator-index \
+        {{ groups['registry'][0] }}/olm/redhat-operator-index:v{{ openshift_minor_version}} \
+        {{ groups['registry'][0] }}
+  async: 18000
+  poll: 0
+  register: olm_mirror
+  when: mirror_olm|bool
+
+# - name: mirror olm images - still running
+#   async_status:
+#     jid: "{{ olm_mirror.ansible_job_id }}"
+#   register: olm_result
+#   until: olm_result.finished
+#   retries: 30000
+#   when: mirror_olm|bool

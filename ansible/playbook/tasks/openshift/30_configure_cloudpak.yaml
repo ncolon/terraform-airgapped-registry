@@ -1,0 +1,50 @@
+- name: set_fact kubeconfig azure
+  set_fact:
+    KUBECONFIG: "{{ cluster_dir.path }}/auth/kubeconfig"
+  when: platform == "azure"
+
+- name: set_fact kubeconfig roks
+  set_fact:
+    KUBECONFIG: "/home/{{ ansible_user }}/.kube/config"
+  when: platform == "roks"
+
+- name: create cloudpak ImageContentSourcePolicies
+  shell:
+    cmd: |
+      cloudctl case launch \
+        --case {{ data_dir }}/artifacts/mirror/case-offline/{{ case_name }}-{{ case_version }}.tgz \
+        --inventory {{ case_inventory_setup }} \
+        --action configure-cluster-airgap \
+        --namespace default \
+        --args '--registry {{ groups['registry'][0] }} --user admin --pass {{ registry_password }} --inputDir {{ data_dir }}/artifacts/mirror/case-offline/'
+  retries: 5
+  delay: 10
+  register: cloudpak_imagecontentsourcepolicy
+  until: cloudpak_imagecontentsourcepolicy.rc == 0
+  environment:
+    KUBECONFIG: "{{ KUBECONFIG }}"
+
+
+- name: create cloudpak CatalogSources
+  shell:
+    cmd: |
+      cloudctl case launch \
+        --case {{ data_dir }}/artifacts/mirror/case-offline/{{ case_name }}-{{ case_version }}.tgz \
+        --inventory {{ case_inventory_setup }} \
+        --action install-catalog \
+        --namespace default \
+        --args '--registry {{ groups['registry'][0] }} --inputDir {{ data_dir }}/artifacts/mirror/case-offline/ --recursive'
+  retries: 5
+  delay: 10
+  register: cloudpak_catalogsource
+  until: cloudpak_catalogsource.rc == 0
+  environment:
+    KUBECONFIG: "{{ KUBECONFIG }}"
+
+- name: replace all worker nodes to progapate pull secret to worker nodes
+  shell:
+    cmd: |
+      for worker in $(ibmcloud ks worker ls -c {{ roks_cluster_id }} | egrep -v "OK|ID" | awk '{print $1}'); do
+         ibmcloud ks worker replace -c {{ roks_cluster_id }} -w $worker -f
+      done
+  when: platform == "roks"

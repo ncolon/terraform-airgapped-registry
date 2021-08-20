@@ -1,0 +1,43 @@
+- name: create partition
+  parted:
+    device: "{{ device }}"
+    number: 1
+    flags: [ lvm ]
+    state: present
+  when: groups["bastion"]
+
+- name: create {{ name }} volume group
+  lvg:
+    vg: "{{ name }}"
+    pvs: "{{ device }}1"
+    pesize: "16"
+  when: groups["bastion"]
+
+- name: create {{ name }} logical volume
+  lvol:
+    vg: "{{ name }}"
+    lv:  "{{ name }}"
+    size: "100%VG"
+  when: groups["bastion"]
+
+- name: Create directory {{ name }} if does not exist
+  file:
+    path: "/{{ name }}"
+    state: directory
+    mode: '0755'
+    owner: "{{ ansible_user }}"
+    group: "{{ ansible_user }}"
+  when: groups["bastion"]
+
+- name: format {{ name }} filesystem with {{ fstype }}
+  filesystem:
+    fstype: "{{ fstype }}"
+    dev: "/dev/{{ name }}/{{ name }}"
+  when: groups["bastion"]
+
+- name: mount logical volume on /{{ name }}
+  mount:
+    path: "/{{ name }}"
+    src: "/dev/{{ name }}/{{ name }}"
+    fstype: "{{ fstype }}"
+    state: mounted

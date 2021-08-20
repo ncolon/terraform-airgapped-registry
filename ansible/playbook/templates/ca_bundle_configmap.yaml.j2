@@ -1,0 +1,9 @@
+---
+apiVersion: v1
+data:
+  {{ groups['registry'][0] }}: | 
+{{ lookup('file', '{{ data_dir }}/artifacts/certificates/rootCA.crt') | indent(4, true) }}
+kind: ConfigMap
+metadata:
+  name: registry-ca-bundle 
+  namespace: openshift-config

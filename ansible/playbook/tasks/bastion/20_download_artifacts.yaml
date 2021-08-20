@@ -1,0 +1,146 @@
+
+- name: create artifacts folder
+  become: true
+  file:
+    path: /{{ data_dir }}/artifacts
+    state: directory
+    mode: '0755'
+    owner: "{{ ansible_user }}"
+    group: "{{ ansible_user }}"
+  register: artifacts_dir
+
+- name: create packages folder
+  file:
+    path: "{{ artifacts_dir.path }}/packages"
+    state: directory
+    mode: '0755'
+    owner: "{{ ansible_user }}"
+    group: "{{ ansible_user }}"
+  register: packages_dir
+
+- name: create packages folder
+  file:
+    path: "{{ artifacts_dir.path }}/downloads"
+    state: directory
+    mode: '0755'
+    owner: "{{ ansible_user }}"
+    group: "{{ ansible_user }}"
+  register: downloads_dir
+
+- name: download docker gpg key
+  get_url:
+    url: https://download.docker.com/linux/ubuntu/gpg
+    dest: "{{ artifacts_dir.path }}/docker-archive-keyring.gpg"
+  when: ansible_os_family == "Debian"
+
+- name: install docker gpg key
+  become: true
+  apt_key:
+    url: https://download.docker.com/linux/ubuntu/gpg
+  when: ansible_os_family == "Debian"
+
+- name: add docker apt repository
+  become: true
+  apt_repository:
+    repo: deb [arch=amd64] https://download.docker.com/{{ ansible_system | lower }}/{{ ansible_distribution | lower }} {{ ansible_distribution_release }} stable
+  when: ansible_os_family == "Debian"
+
+- name: install skopeo gpg key
+  become: true
+  apt_key:
+    url: https://download.opensuse.org/repositories/devel:/kubic:/libcontainers:/stable/xUbuntu_{{ ansible_distribution_version }}/Release.key
+  when: ansible_os_family == "Debian"
+
+- name: add skopeo apt repository
+  become: true
+  apt_repository:
+    repo: deb https://download.opensuse.org/repositories/devel:/kubic:/libcontainers:/stable/xUbuntu_{{ ansible_distribution_version }}/ /
+  when: ansible_os_family == "Debian"
+
+- name: download docker-compose
+  get_url:
+    url: "https://github.com/docker/compose/releases/download/{{ compose_version }}/docker-compose-{{ ansible_system }}-{{ ansible_machine }}"
+    dest: "{{ downloads_dir.path }}/docker-compose"
+
+- name: download harbor
+  get_url:
+    url: "https://github.com/goharbor/harbor/releases/download/v{{ harbor_version }}/harbor-offline-installer-v{{ harbor_version }}.tgz"
+    dest: "{{ downloads_dir.path }}/harbor-offline-installer.tgz"
+
+- name: download openshift-client
+  get_url:
+    url: "https://mirror.openshift.com/pub/openshift-v4/clients/ocp/{{ openshift_version }}/openshift-client-linux.tar.gz"
+    dest: "{{ downloads_dir.path }}/openshift-client-linux.tar.gz"
+
+- name: download opm
+  get_url:
+    url: "https://mirror.openshift.com/pub/openshift-v4/clients/ocp/{{ openshift_version }}/opm-linux.tar.gz"
+    dest: "{{ downloads_dir.path }}/opm-linux.tar.gz"
+
+- name: download grpcurl
+  get_url:
+    url: "https://github.com/fullstorydev/grpcurl/releases/download/v1.8.2/grpcurl_1.8.2_linux_x86_64.tar.gz"
+    dest: "{{ downloads_dir.path }}/grpcurl.tar.gz"
+
+- name: set_fact cloudctl_donwnload_url
+  set_fact:
+    cloudctl_donwnload_url: https://github.com/IBM/cloud-pak-cli/releases/download/v{{ cloudctl_version }}/cloudctl-linux-amd64.tar.gz
+
+- name: set_fact cloudctl_donwnload_url
+  set_fact:
+    cloudctl_donwnload_url: https://github.com/IBM/cloud-pak-cli/releases/latest/download/cloudctl-linux-amd64.tar.gz
+  when: cloudctl_version == "latest"
+
+- name: download cloudctl
+  get_url:
+    url: "{{ cloudctl_donwnload_url }}"
+    dest: "{{ downloads_dir.path }}/cloudctl-linux-amd64.tar.gz"
+
+- name: extract openshift client
+  become: true
+  unarchive:
+    src: "{{ data_dir }}/artifacts/downloads/openshift-client-linux.tar.gz"
+    dest: /usr/local/bin/
+    exclude: 
+     - README.md
+    remote_src: yes
+
+- name: extract opm
+  become: true
+  unarchive:
+    src: "{{ data_dir }}/artifacts/downloads/opm-linux.tar.gz"
+    dest: /usr/local/bin/
+    remote_src: yes
+
+- name: extract grpcurl
+  become: true
+  unarchive:
+    src: "{{ data_dir }}/artifacts/downloads/grpcurl.tar.gz"
+    dest: /usr/local/bin/
+    remote_src: yes
+
+- name: extract cloudctl 
+  become: true
+  unarchive:
+    src: "{{ data_dir }}/artifacts/downloads/cloudctl-linux-amd64.tar.gz"
+    dest: /usr/local/bin/
+    remote_src: yes
+
+- name: download required packages
+  shell:
+    cmd: apt-get download {{ item }}
+    chdir: "{{ packages_dir.path }}"
+  with_items: "{{ download_packages }}"
+  when: ansible_os_family == "Debian"
+
+- name: install packages
+  become: true
+  package:
+    name: "{{ item }}"
+    state: present
+  with_items:
+    - jq
+    - apache2-utils
+    - skopeo
+    - podman
+    - docker-ce

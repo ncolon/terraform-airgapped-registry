@@ -1,0 +1,16 @@
+- name: import ocp registry images
+  shell:
+    cmd: |
+      oc image mirror -a {{ data_dir }}/artifacts/mirror/pull-secret.txt \
+        --from-dir={{ data_dir }}/artifacts/mirror/ocp4 \
+        'file://openshift/release:{{ openshift_version }}*' \
+        {{ registry_host }}/ocp4/openshift4
+    chdir: "{{ data_dir }}/artifacts/mirror/ocp4"
+
+- name: import olm registry images
+  shell:
+    cmd: |
+      oc adm catalog mirror -a {{ data_dir }}/artifacts/mirror/pull-secret.txt \
+        'file://local/index/redhat/redhat-operator-index:v4.6' {{ registry_host }}/olm
+    chdir: "{{ data_dir }}/artifacts/mirror/olm"
+  when: mirror_olm|bool

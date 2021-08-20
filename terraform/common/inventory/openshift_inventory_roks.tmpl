@@ -1,0 +1,27 @@
+[all:children]
+bastion
+registry
+
+[all:vars]
+ansible_user=${username}
+ansible_ssh_common_args='-o StrictHostKeyChecking=no -o IdentitiesOnly=yes'
+ansible_ssh_private_key_file="~/.ssh/id_rsa"
+public_ssh_key=${public_ssh_key}
+data_dir=${data_dir}
+case_name=${case_name}
+case_version=${case_version}
+case_inventory_setup=${case_inventory_setup}
+registry_password=${registry_password}
+ibmcloud_api_key=${ibmcloud_api_key}
+roks_cluster_id=${roks_cluster_id}
+ibmcloud_version=${ibmcloud_version}
+mirror_olm=${mirror_olm}
+mirror_platform=${mirror_platform}
+platform=${platform}
+
+
+[bastion]
+${bastion_host}
+
+[registry]
+${registry_host}

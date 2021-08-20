@@ -1,0 +1,29 @@
+- name: copy registryCA to trust store debian
+  copy:
+    src: "{{ data_dir }}/artifacts/certificates/rootCA.crt"
+    dest: "{{ ca_path_debian }}/registryRootCA.crt"
+    force: yes
+    owner: root
+    group: root
+    mode: 0644
+    remote_src: true
+  when: ansible_os_family == "Debian"
+
+- name: copy registryCA to trust store redhat
+  copy:
+    src: "{{ data_dir }}/artifacts/certificates/rootCA.crt"
+    dest: "{{ ca_path_redhat }}/registryRootCA.crt"
+    force: yes
+    owner: root
+    group: root
+    mode: 0644
+    remote_src: true
+  when: ansible_os_family == "Redhat"
+
+- name: update trusted ca debian
+  shell: /usr/sbin/update-ca-certificates
+  when: ansible_os_family == "Debian"
+
+- name: update trusted ca redhat
+  shell: /bin/update-ca-trust
+  when: ansible_os_family == "RedHat" 

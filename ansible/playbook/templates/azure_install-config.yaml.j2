@@ -1,0 +1,60 @@
+apiVersion: v1
+baseDomain: {{ openshift_base_domain }}
+compute:
+- hyperthreading: Enabled
+  name: worker
+  platform:
+    azure:
+      type: {{ openshift_worker_vm_type | default('Standard_D4s_v3')}}
+      osDisk:
+        diskSizeGB: {{ openshift_worker_os_disk_size | default('512') }}
+        diskType: Premium_LRS
+  replicas: {{ openshift_worker_node_count | default('3') }}
+controlPlane:
+  hyperthreading: Enabled
+  name: master
+  platform:
+    azure:
+      type: {{ openshift_master_vm_type | default('Standard_D4s_v3') }}
+      osDisk:
+        diskSizeGB: {{ openshift_master_os_disk_size | default('1024') }}
+        diskType: Premium_LRS
+      zones:
+      - "1"
+      - "2"
+      - "3"
+  replicas: 
+metadata:
+  creationTimestamp: null
+  name: {{ cluster_name }}
+networking:
+  clusterNetwork:
+  - cidr: {{ openshift_cluster_network_cidr | default('10.128.0.0/14') }}
+    hostPrefix: {{ openshift_cluster_network_host_prefix | default('23') }}
+  machineNetwork:
+  - cidr: {{ openshift_machine_cidr | default('10.10.0.0/16')}}
+  networkType: {{ openshift_network_type | default('OpenShiftSDN')}}
+  serviceNetwork:
+  - {{ openshift_service_network_cidr | default('172.30.0.0/16') }}
+platform:
+  azure:
+    region: {{ azure_region }}
+    baseDomainResourceGroupName: {{ azure_dns_resource_group_name }}
+    resourceGroupName: {{ cluster_resource_group_name }}
+    networkResourceGroupName: {{ preexisting_network_resource_group_name }}
+    virtualNetwork: {{ preexisting_virtual_network_name }}
+    controlPlaneSubnet: {{ preexisting_control_plane_subnet }}
+    computeSubnet: {{ preexisting_compute_subnet }}
+    outboundType: {{ azure_outbound_type | default('UserDefinedRouting') }}
+publish: {{ openshift_azure_publish | default('Internal') }}
+pullSecret: '{{ lookup('file', '/home/{{ ansible_user }}/pull-secret.txt') }}'
+sshKey: '{{ public_ssh_key }}'
+imageContentSources:
+- mirrors:
+  - {{ groups['registry'][0] }}/ocp4/openshift4
+  source: quay.io/openshift-release-dev/ocp-release
+- mirrors:
+  - {{ groups['registry'][0] }}/ocp4/openshift4
+  source: quay.io/openshift-release-dev/ocp-v4.0-art-dev
+additionalTrustBundle: |
+{{ lookup('file', '{{data_dir}}/artifacts/certificates/rootCA.crt') | indent(2, true) }}

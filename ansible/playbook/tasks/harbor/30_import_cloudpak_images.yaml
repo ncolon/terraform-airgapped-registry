@@ -1,0 +1,70 @@
+- name: create local directories
+  file:
+    path: "{{ data_dir }}/artifacts/mirror/case-offline"
+    state: directory
+    mode: '0755'
+    owner: "{{ ansible_user }}"
+    group: "{{ ansible_user }}"
+  register: case_offline
+
+- name: extract cloudctl
+  become: true
+  unarchive:
+    src: "{{ data_dir }}/artifacts/downloads/cloudctl-linux-amd64.tar.gz"
+    dest: /usr/local/bin/
+    remote_src: yes
+
+- name: rename cloudctl
+  become: true
+  shell:
+    cmd: mv /usr/local/bin/cloudctl-linux-amd64 /usr/local/bin/cloudctl
+
+# cloudctl case save --repo https://github.com/IBM/cloud-pak/raw/master/repo/case --case ibm-cp-integration --version 2.2.2 --outputdir /data/artifacts/mirror/case-offline
+- name: download {{ case_name }}-{{ case_version }} case bundles
+  shell:
+    cmd: |
+      cloudctl case save --repo {{ case_repo_path }} \
+        --case {{ case_name }} \
+        --version {{ case_version }} \
+        --outputdir {{ case_offline.path }}
+
+# cloudctl case launch --case /data/artifacts/mirror/case-offline/ibm-cp-integration-2.2.2.tgz --inventory operator --action configure-creds-airgap --args "--registry 10.0.32.4 --user admin --pass $PASS"
+- name: configure cloudctl airgap credentials for {{ groups['registry'][0] }}
+  shell:
+    cmd: |
+      cloudctl case launch \
+        --case {{ case_offline.path }}/{{ case_name }}-{{ case_version }}.tgz \
+        --inventory {{ case_inventory_setup }} \
+        --action configure-creds-airgap \
+        --args "--registry {{ groups['registry'][0] }} --user admin --pass {{ registry_password }}"
+
+# cloudctl case launch --case /data/artifacts/mirror/case-offline/ibm-cp-integration-2.2.2.tgz --inventory operator --action configure-creds-airgap --args "--registry cp.icr.io --user cp --pass $PASS"
+- name: configure cloudctl airgap credentials for cp.icr.io
+  shell:
+    cmd: |
+      cloudctl case launch \
+        --case {{ case_offline.path }}/{{ case_name }}-{{ case_version }}.tgz \
+        --inventory {{ case_inventory_setup }} \
+        --action configure-creds-airgap \
+        --args "--registry cp.icr.io --user cp --pass {{ entitlement_key }}"
+
+# cloudctl case launch --case /data/artifacts/mirror/case-offline/ibm-cp-integration-2.2.2.tgz --inventory operator --action mirror-images --args "--registry localhost --inputDir /data/artifacts/mirror/case-offline"
+- name: mirror cloudpak images to {{ groups['registry'][0] }}
+  shell:
+    cmd: |
+      cloudctl case launch \
+        --case {{ case_offline.path }}/{{ case_name }}-{{ case_version }}.tgz \
+        --inventory {{ case_inventory_setup }} \
+        --action mirror-images \
+        --args "--registry {{ groups['registry'][0] }} --inputDir {{ case_offline.path }} --chunks 50"
+  async: 18000
+  retries: 10
+  poll: 0
+  register: case_mirror
+
+# - name: download case images - still running
+#   async_status:
+#     jid: "{{ case_mirror.ansible_job_id }}"
+#   register: ocp_result
+#   until: ocp_result.finished
+#   retries: 30000

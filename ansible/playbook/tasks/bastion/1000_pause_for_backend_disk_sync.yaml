@@ -1,0 +1,3 @@
+- name: wait 60 seconds for disk sync
+  pause:
+    seconds: "{{ time_wait }}"

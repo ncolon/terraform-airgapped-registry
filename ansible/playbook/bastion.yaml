@@ -1,0 +1,51 @@
+---
+- hosts: bastion
+  connection: local
+  tasks:
+    - name: configure storage
+      become: true
+      import_tasks: tasks/common/10_configure_storage.yaml
+      vars:
+        - device: "{{ disk_device }}"
+        - name: "{{ volume_name }}"
+        - fstype: xfs
+    - name: create certificates
+      import_tasks: tasks/bastion/10_create_certificates.yaml
+    - name: update certificate trust store
+      become: true
+      import_tasks: tasks/common/20_update_trust_store.yaml
+    - name: download artifacts
+      import_tasks: tasks/bastion/20_download_artifacts.yaml
+      vars:
+        download_packages:
+        - catatonit
+        - conmon
+        - containernetworking-plugins
+        - containers-common
+        - criu
+        - crun
+        - dns-root-data
+        - dnsmasq-base
+        - fuse-overlayfs
+        - libidn11
+        - libnet1
+        - libnl-3-200
+        - libprotobuf-c1
+        - libprotobuf17
+        - libyajl2
+        - podman
+        - podman-machine-cni
+        - podman-plugins
+        - python3-protobuf
+        - skopeo
+        - slirp4netns
+        - uidmap
+        - docker-ce
+        - docker-ce-cli
+        - containerd.io
+        - libfuse3-3
+        - fuse3
+    - name: pause for backend disk sync
+      import_tasks: tasks/bastion/1000_pause_for_backend_disk_sync.yaml
+      vars:
+        - time_wait: 60

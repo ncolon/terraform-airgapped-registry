@@ -1,0 +1,12 @@
+- name: create local directories
+  file:
+    path: "{{ data_dir }}/artifacts/mirror/registry"
+    state: directory
+    mode: '0755'
+    owner: "{{ ansible_user }}"
+    group: "{{ ansible_user }}"
+  register: registry_offline
+
+- name: load registry image
+  shell:
+    cmd: podman load -i {{ registry_offline.path }}/registry.tar

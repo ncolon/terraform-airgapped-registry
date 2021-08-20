@@ -1,0 +1,99 @@
+- name: create certificate folder
+  become: true
+  file:
+    path: "{{ data_dir }}/artifacts/certificates"
+    state: directory
+    mode: '0755'
+    owner: "{{ ansible_user }}"
+    group: "{{ ansible_user }}"
+  register: cert_dir
+
+- name: create CA key
+  openssl_privatekey:
+    path: /{{ cert_dir.path }}/rootCA.key
+    size: 4096
+  register: ca_key
+
+- name: create the CA CSR
+  openssl_csr:
+    path: /{{ cert_dir.path }}/rootCA.csr
+    privatekey_path: "{{ ca_key.filename }}"
+    common_name: "Registry Certificate"
+    country_name: US
+    key_usage_critical: yes
+    key_usage:
+      - digitalSignature
+      - cRLSign
+      - keyCertSign
+    basicConstraints: ['CA:TRUE']
+  register: ca_csr
+
+- name: sign the CA CSR
+  openssl_certificate:
+    path: /{{ cert_dir.path }}/rootCA.crt
+    csr_path: "{{ ca_csr.filename }}"
+    privatekey_path: "{{ ca_key.filename }}"
+    provider: selfsigned
+  register: ca_crt
+
+- name: create registry key
+  openssl_privatekey:
+    path: /{{ cert_dir.path }}/registry.key
+    size: 4096
+  register: registry_key
+
+- name: create bastion key
+  openssl_privatekey:
+    path: /{{ cert_dir.path }}/bastion.key
+    size: 4096
+  register: bastion_key
+
+- name: create the registry CSR
+  openssl_csr:
+    path: /{{ cert_dir.path }}/registry.csr
+    privatekey_path: "{{ registry_key.filename }}"
+    common_name: "registry.example.com"
+    country_name: US
+    subject_alt_name: "IP:{{ groups['registry'][0] }}"
+  register: registry_csr
+
+- name: sign the registry CSR
+  openssl_certificate:
+    path: /{{ cert_dir.path }}/registry.crt
+    csr_path: "{{ registry_csr.filename }}"
+    privatekey_path: "{{ registry_key.filename }}"
+    ownca_path: "{{ ca_crt.filename }}"
+    ownca_privatekey_path: "{{ ca_key.filename }}"
+    provider: ownca
+  register: registry_crt
+
+- name: create the bastion CSR
+  openssl_csr:
+    path: /{{ cert_dir.path }}/bastion.csr
+    privatekey_path: "{{ bastion_key.filename }}"
+    common_name: "bastion.example.com"
+    country_name: US
+    subject_alt_name: 
+    - "IP:{{ groups['bastion'][0] }}"
+    - "IP:{{ bastion_host_public }}"
+  register: bastion_csr
+
+- name: sign the bastion CSR
+  openssl_certificate:
+    path: /{{ cert_dir.path }}/bastion.crt
+    csr_path: "{{ bastion_csr.filename }}"
+    privatekey_path: "{{ bastion_key.filename }}"
+    ownca_path: "{{ ca_crt.filename }}"
+    ownca_privatekey_path: "{{ ca_key.filename }}"
+    provider: ownca
+  register: bastion_crt
+
+# - name: change certificate owner to {{ ansible_user }}
+#   become: yes
+#   ansible.builtin.file:
+#     path:  "{{ cert_dir.path }}"
+#     state: directory
+#     mode: '0755'
+#     owner: "{{ ansible_user }}"
+#     group: "{{ ansible_user }}"
+#     recurse: yes

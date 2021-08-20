@@ -1,0 +1,22 @@
+- name: restrict project creation on registry to admin
+  uri:
+    url: https://{{ groups['registry'][0] }}/api/v2.0/configurations
+    method: PUT
+    url_username: admin
+    url_password: "{{registry_password}}"
+    body: '{"project_creation_restriction":"adminonly"}'
+    body_format: json
+    force_basic_auth: yes
+    status_code: [200, 201, 409]
+
+- name: create registry projects/namespaces
+  uri:
+    url: https://{{ groups['registry'][0] }}/api/v2.0/projects
+    method: POST
+    url_username: admin
+    url_password: "{{registry_password}}"
+    body: "{'project_name':'{{item}}', 'public': false}"
+    body_format: json
+    force_basic_auth: yes
+    status_code: [200, 201, 409]
+  with_items: "{{ registry_namespaces }}"

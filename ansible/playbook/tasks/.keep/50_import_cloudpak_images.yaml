@@ -1,0 +1,83 @@
+- name: create local directories
+  file:
+    path: "{{ data_dir }}/artifacts/mirror/case-offline"
+    state: directory
+    mode: '0755'
+    owner: "{{ ansible_user }}"
+    group: "{{ ansible_user }}"
+  register: case_offline
+
+- name: create local directories
+  file:
+    path: "{{ data_dir }}/artifacts/mirror/case-images"
+    state: directory
+    mode: '0755'
+    owner: "{{ ansible_user }}"
+    group: "{{ ansible_user }}"
+  register: case_images
+
+- name: extract cloudctl 
+  unarchive:
+    src: "{{ data_dir }}/artifacts/downloads/cloudctl-linux-amd64.tar.gz"
+    dest: /usr/local/bin/
+    remote_src: yes
+
+- name: rename cloudctl
+  shell:
+    cmd: mv /usr/local/bin/cloudctl-linux-amd64 /usr/local/bin/cloudctl
+
+# cloudctl case launch --case /data/artifacts/mirror/case-offline/ibm-cp-integration-2.2.2.tgz --inventory operator --action start-registry --args "--registry localhost --port 443 --user localuser --pass $PASS --dir /data/artifacts/mirror/case-images"
+- name: start temporary docker registry
+  shell:
+    cmd: |
+      cloudctl case launch \
+        --case {{ case_offline.path }}/{{ case_name }}-{{ case_version }}.tgz \
+        --inventory {{ case_inventory_setup }} \
+        --action start-registry \
+        --args "--registry localhost --port 8443 --user localuser --pass l0calPassword! --dir {{ case_images.path }}"
+  ignore_errors: yes
+
+
+
+# PASS=")jZIjZYidbZwXFfc"
+# cloudctl case launch --case /data/artifacts/mirror/case-offline/ibm-cp-integration-2.2.2.tgz --inventory operator --action configure-creds-airgap --args "--registry 10.0.32.4 --user admin --pass $PASS"
+- name: configure cloudctl airgap credentials for {{ registry_host }}
+  shell:
+    cmd: |
+      cloudctl case launch \
+        --case {{ case_offline.path }}/{{ case_name }}-{{ case_version }}.tgz \
+        --inventory {{ case_inventory_setup }} \
+        --action configure-creds-airgap \
+        --args "--registry {{ registry_host }} --user admin --pass {{ registry_password }}"
+
+# PASS='l0calPassword!'
+# cloudctl case launch --case /data/artifacts/mirror/case-offline/ibm-cp-integration-2.2.2.tgz --inventory operator --action configure-creds-airgap --args "--registry localhost --user localuser --pass $PASS"
+- name: configure cloudctl airgap credentials for temporary docker reigstry
+  shell:
+    cmd: |
+      cloudctl case launch \
+        --case {{ case_offline.path }}/{{ case_name }}-{{ case_version }}.tgz \
+        --inventory {{ case_inventory_setup }} \
+        --action configure-creds-airgap \
+        --args "--registry localhost:8443 --user localuser --pass l0calPassword!"
+
+# cloudctl case launch --case /data/artifacts/mirror/case-offline/ibm-cp-integration-2.2.2.tgz --inventory operator --action mirror-images --args "--fromRegistry localhost:8443 --registry 10.0.32.4 --inputDir /data/artifacts/mirror/case-offline"
+- name: mirror cloudpak images to temporary docker registry
+  shell:
+    cmd: |
+      cloudctl case launch \
+        --case {{ case_offline.path }}/{{ case_name }}-{{ case_version }}.tgz \
+        --inventory {{ case_inventory_setup }} \
+        --action mirror-images \
+        --args "--fromRegistry localhost:8443 --registry {{ registry_host }} --inputDir {{ case_offline.path }} --chunks 50 --skip-delta"
+  async: 18000
+  retries: 10
+  poll: 0
+  register: case_mirror
+
+- name: import case images - still running
+  async_status:
+    jid: "{{ case_mirror.ansible_job_id }}"
+  register: ocp_result
+  until: ocp_result.finished
+  retries: 30000

@@ -1,0 +1,99 @@
+- name: create cluster folder
+  file:
+    path: "/home/{{ ansible_user }}/cluster"
+    state: directory
+    mode: '0755'
+    owner: "{{ ansible_user }}"
+    group: "{{ ansible_user }}"
+  register: cluster_dir
+
+- name: extract openshift-install
+  shell:
+    cmd: |
+      oc adm release extract \
+        -a /home/{{ ansible_user }}/pull-secret.txt \
+        --command=openshift-install \
+        {{ groups['registry'][0]  }}/ocp4/openshift4:{{ openshift_version }}-{{ openshift_architecture }}
+    chdir: "{{ cluster_dir.path }}"
+
+- name: create install-config.yaml
+  template:
+    src: templates/{{ platform }}_install-config.yaml.j2
+    dest: "{{ cluster_dir.path }}/install-config.yaml"
+
+- name: create .azure folder
+  file:
+    path: "/home/{{ ansible_user }}/.azure"
+    state: directory
+    mode: '0755'
+    owner: "{{ ansible_user }}"
+    group: "{{ ansible_user }}"
+  register: azure_home
+
+- name: create azure service principal json file
+  template:
+    src: templates/azure_osServicePrincipal.json.j2
+    dest: "{{ azure_home.path }}/osServicePrincipal.json"
+
+- name: install azure-cli gpg key
+  become: true
+  apt_key:
+    url: https://packages.microsoft.com/keys/microsoft.asc
+
+- name: add azure-cli apt repository
+  become: true
+  apt_repository:
+    repo: deb [arch=amd64] https://packages.microsoft.com/repos/azure-cli/ {{ ansible_distribution_release }} main
+  when: (ansible_os_family == "Debian") and (platform == "azure")
+
+- name: add azure-cli package
+  become: true
+  package:
+    name: azure-cli
+    state: present
+
+- name: create openshift manifests
+  shell:
+    cmd: "{{ cluster_dir.path }}/openshift-install create manifests --dir {{ cluster_dir.path }} --log-level=debug"
+
+# INSERT YAMLS HERE
+    
+- name: deploy openshift cluster
+  shell:
+    cmd: "{{ cluster_dir.path }}/openshift-install create cluster --dir {{ cluster_dir.path }} --log-level=debug"
+  async: 14400
+  poll: 0
+  register: deploy_openshift
+
+- name: logon with azure-cli
+  shell:
+    cmd: az login --service-principal -u {{ azure_client_id }} -p {{ azure_client_secret }} --tenant {{ azure_tenant_id }}
+
+- name: wait for private zone to be ready
+  shell:
+    cmd: |
+      while ! az network private-dns zone show --name {{ cluster_name }}.{{ openshift_base_domain }} --resource-group {{ cluster_resource_group_name }}; do
+        sleep 5
+      done
+
+- name: create private-dns vnet link
+  shell:
+    cmd: |
+      az network private-dns link vnet create \
+        --name cluster-private-dns-link \
+        --registration-enabled  False \
+        --resource-group {{ cluster_resource_group_name }} \
+        --zone-name {{ cluster_name }}.{{ openshift_base_domain }} \
+        --virtual-network /subscriptions/{{ azure_subscription_id }}/resourceGroups/{{ registry_resrouce_group_name }}/providers/Microsoft.Network/virtualNetworks/{{ registry_virtual_network_name }}
+
+- name: debug deploy_openshift
+  debug:
+    var: deploy_openshift
+
+- name: wait for cluster
+  async_status:
+    jid: "{{ deploy_openshift.ansible_job_id }}"
+  register: cluster_result
+  until: cluster_result.finished
+  retries: 30000
+ 

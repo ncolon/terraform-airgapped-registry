@@ -1,0 +1,9 @@
+---
+- hosts: bastion
+  tasks:
+    - name: configure harbor registry
+      import_tasks: tasks/harbor/10_configure_registry.yaml
+    - name: mirror ocp images into registry [{{ registry_host }}]
+      import_tasks: tasks/harbor/20_import_openshift_images.yaml
+    - name: import cloudpak images into registry [{{ registry_host }}]
+      import_tasks: tasks/harbor/30_import_cloudpak_images.yaml
