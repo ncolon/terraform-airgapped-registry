@@ -52,7 +52,7 @@ module "vnet" {
   source         = "./vnet"
   region         = var.region
   resource_group = local.resource_group
-  vnet_cidr      = var.registry_vnet_cidr
+  vnet_cidr      = var.registry_network_cidr
   prefix         = local.prefix
 
 }
@@ -146,6 +146,7 @@ module "registry_playbook" {
     registry_host     = module.registry.private_ip
     bastion_host      = module.bastion.private_ip
     username          = var.username
+    disk_device       = var.disk_device
     volume_name       = var.volume_name
     data_dir          = var.extra_disk_mountpoint
     registry_password = random_password.registry_password.result
@@ -163,7 +164,7 @@ module "harbor_playbook" {
   username            = var.username
   private_ssh_key     = local.private_ssh_key
   bastion_host_public = module.bastion.public_ip
-  inventory = templatefile("${path.root}/../../ansible/templates/harbor_inventory_unmanaged.tmpl", {
+  inventory = templatefile("${var.inventory_path}/harbor_inventory.tmpl", {
     username               = var.username
     registry_host          = module.registry.private_ip
     bastion_host           = module.bastion.private_ip

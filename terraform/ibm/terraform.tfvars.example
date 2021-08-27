@@ -1,0 +1,45 @@
+cloud_platform = "roks"
+
+ibmcloud_api_key = "XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX"
+
+region = "us-east"
+
+prefix = "ncolon-ag-registry"
+
+username    = "ubuntu"
+disk_device = "/dev/vde"
+
+openshift_version = "4.6.17"
+cloudctl_version  = "3.8.0"
+ibmcloud_version  = "2.0.2"
+
+entitlement_key = "eyJ..."
+
+# CP4I
+case_name            = "ibm-cp-integration"
+case_version         = "2.3.0"
+case_inventory_setup = "operator"
+case_repo_path       = "https://github.com/IBM/cloud-pak/raw/master/repo/case"
+
+# CP4WAIOps
+# case_name            = "ibm-cp-waiops"
+# case_version         = "1.0.1"
+# case_inventory_setup = "cpwaiopsSetup"
+# case_repo_path       = "https://github.com/IBM/cloud-pak/raw/master/repo/case"
+
+openshift_pull_secret     = "~/.pull-secret"
+openshift_mirror_olm      = true
+openshift_mirror_platform = false
+
+
+preexisting_cluster_resource_group_name = "ncolon-ag-cluster-rg"
+preexisting_virtual_network_name        = "ncolon-ag-vpc"
+preexisting_roks_cluster_name           = "ncolon-ag-roks"
+
+keep_operators = [
+  "openshift-gitops-operator",
+  "openshift-pipelines-operator-rh"
+]
+
+bastion_vm_size  = "bx2d-8x32"
+registry_vm_size = "bx2d-8x32"

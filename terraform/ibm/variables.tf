@@ -4,14 +4,14 @@ variable "cloud_platform" {
 
 variable "region" {
   type        = string
-  description = "The target IBM Cloud region for the image registry."
+  description = "The target region for the image registry."
 }
 
 variable "prefix" {
   type = string
 }
 
-variable "registry_vpc_cidr" {
+variable "registry_network_cidr" {
   type    = string
   default = "10.0.0.0/16"
 }
@@ -173,13 +173,41 @@ variable "registry_namespaces" {
 variable "playbook_path" {
   type    = string
   default = "../../ansible/playbook"
-  validation {
-    condition     = regex("/playbook$", var.playbook_path) == "/playbook"
-    error_message = "Folder for ansible playbooks must be called playbooks (/path/to/playbook)."
-  }
 }
 
 variable "inventory_path" {
   type    = string
   default = "../common/inventory"
+}
+
+######## IBM ########
+variable "ibmcloud_api_key" {
+  type        = string
+  description = "IBM Cloud API Key"
+}
+
+variable "keep_operators" {
+  type = list(string)
+  default = [
+    "ocs-operator",
+    "openshift-gitops-operator",
+    "openshift-pipelines-operator-rh",
+    "local-storage-operator"
+  ]
+}
+
+variable "preexisting_cluster_resource_group_name" {
+  type = string
+}
+
+variable "preexisting_virtual_network_name" {
+  type = string
+}
+
+variable "preexisting_roks_cluster_name" {
+  type = string
+}
+
+variable "ibmcloud_version" {
+  type = string
 }

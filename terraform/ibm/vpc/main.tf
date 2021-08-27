@@ -12,7 +12,7 @@ resource "ibm_is_vpc_address_prefix" "address_prefix" {
   name = "default"
   zone = "${var.region}-${count.index + 1}"
   vpc  = local.registry_vpc_id
-  cidr = cidrsubnet(var.registry_vpc_cidr, 2, count.index)
+  cidr = cidrsubnet(var.registry_network_cidr, 2, count.index)
 }
 
 resource "ibm_is_public_gateway" "public_gateway" {

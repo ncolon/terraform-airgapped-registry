@@ -1,0 +1,47 @@
+cloud_platform = "azure"
+
+client_id       = "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+client_secret   = "BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB"
+subscription_id = "CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC"
+tenant_id       = "DDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDD"
+
+
+region = "eastus"
+
+prefix = "airgap-registry"
+
+username    = "ocpadmin"
+disk_device = "/dev/sdc"
+
+openshift_version = "4.6.17"
+cloudctl_version  = "3.8.0"
+
+
+entitlement_key = "eyJ...."
+
+# CP4I
+case_name            = "ibm-cp-integration"
+case_version         = "2.3.0"
+case_inventory_setup = "operator"
+case_repo_path       = "https://github.com/IBM/cloud-pak/raw/master/repo/case"
+
+# CP4WAIOps
+# case_name            = "ibm-cp-waiops"
+# case_version         = "1.0.1"
+# case_inventory_setup = "cpwaiopsSetup"
+# case_repo_path       = "https://github.com/IBM/cloud-pak/raw/master/repo/case"
+
+openshift_pull_secret = "~/.pull-secret"
+openshift_mirror_olm  = true
+
+
+openshift_base_domain                   = "azure.ibm-gtmaa.dev"
+openshift_cluster_name                  = "ncolon-ag"
+preexisting_cluster_resource_group_name = "ncolon-ag-cluster-rg"
+azure_dns_resource_group_name           = "ncolon-openshift4-rg"
+preexisting_network_resource_group_name = "ncolon-ag-network-rg"
+preexisting_virtual_network_name        = "ncolon-ag-vnet"
+preexisting_control_plane_subnet        = "ncolon-ag-master"
+preexisting_compute_subnet              = "ncolon-ag-worker"
+openshift_azure_private                 = true
+# azure_outbound_type                     = "Loadbalancer"

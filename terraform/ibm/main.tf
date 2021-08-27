@@ -56,12 +56,12 @@ data "ibm_container_vpc_cluster" "cluster" {
 }
 
 module "vpc" {
-  source            = "./vpc"
-  region            = var.region
-  prefix            = local.prefix
-  resource_group_id = ibm_resource_group.registry_rg.id
-  registry_vpc_cidr = var.registry_vpc_cidr
-  cluster_api_port  = split(":", data.ibm_container_vpc_cluster.cluster.public_service_endpoint_url)[2]
+  source                = "./vpc"
+  region                = var.region
+  prefix                = local.prefix
+  resource_group_id     = ibm_resource_group.registry_rg.id
+  registry_network_cidr = var.registry_network_cidr
+  cluster_api_port      = split(":", data.ibm_container_vpc_cluster.cluster.public_service_endpoint_url)[2]
 }
 
 module "diskencryption" {

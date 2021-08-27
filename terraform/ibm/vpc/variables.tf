@@ -10,7 +10,7 @@ variable "resource_group_id" {
   type = string
 }
 
-variable "registry_vpc_cidr" {
+variable "registry_network_cidr" {
   type = string
 }
 

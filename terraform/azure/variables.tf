@@ -37,7 +37,7 @@ variable "prefix" {
   type = string
 }
 
-variable "registry_vnet_cidr" {
+variable "registry_network_cidr" {
   type    = string
   default = "10.0.0.0/16"
 }
@@ -305,10 +305,6 @@ variable "openshift_network_type" {
 variable "playbook_path" {
   type    = string
   default = "../../ansible/playbook"
-  validation {
-    condition     = regex("/playbook$", var.playbook_path) == "/playbook"
-    error_message = "Folder for ansible playbooks must be called playbooks (/path/to/playbook)."
-  }
 }
 
 variable "inventory_path" {

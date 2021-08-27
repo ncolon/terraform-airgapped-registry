@@ -21,3 +21,13 @@ variable "playbook_path" {
 variable "inventory" {
   type = string
 }
+
+variable "playbook_workspace" {
+  type    = string
+  default = ""
+}
+
+variable "upload_files" {
+  type    = string
+  default = ""
+}
