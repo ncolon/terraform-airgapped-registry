@@ -2,12 +2,12 @@
 - hosts: bastion
   connection: local
   tasks:
-    # - name: install openshift
-    #   import_tasks: tasks/openshift/10_install_openshift_azure.yaml
-    #   when: platform == "azure"
-    # - name: install openshift
-    #   import_tasks: tasks/openshift/10_install_openshift_roks.yaml
-    #   when: platform == "roks"
+    - name: install openshift
+      import_tasks: tasks/openshift/10_install_openshift_azure.yaml
+      when: platform == "azure"
+    - name: install openshift
+      import_tasks: tasks/openshift/10_install_openshift_roks.yaml
+      when: platform == "roks"
     - name: configure openshift
       import_tasks: tasks/openshift/20_configure_openshift.yaml
     - name: configure cloudpak
