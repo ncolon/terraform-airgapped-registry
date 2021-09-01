@@ -5,23 +5,22 @@
     mode: '0755'
     owner: "{{ ansible_user }}"
     group: "{{ ansible_user }}"
-  register: cluster_dir
 
 - name: download ibmcloud cli
   get_url:
     url: https://download.clis.cloud.ibm.com/ibm-cloud-cli/{{ ibmcloud_version }}/IBM_Cloud_CLI_{{ ibmcloud_version }}_amd64.tar.gz
-    dest: "{{ cluster_dir.path }}"
+    dest: "/home/{{ ansible_user }}/cluster"
 
 - name: extract ibmcloud cli
   unarchive:
-    src: "{{ cluster_dir.path }}/IBM_Cloud_CLI_{{ ibmcloud_version }}_amd64.tar.gz"
-    dest: "{{ cluster_dir.path }}"
+    src: "/home/{{ ansible_user }}/cluster/IBM_Cloud_CLI_{{ ibmcloud_version }}_amd64.tar.gz"
+    dest: "/home/{{ ansible_user }}/cluster"
     remote_src: yes
 
 - name: authenticate with ibmcloud cli
   shell:
     cmd: |
-      {{ cluster_dir.path }}/Bluemix_CLI/install
+      /home/{{ ansible_user }}/cluster/Bluemix_CLI/install
       ibmcloud plugin install container-service
       ibmcloud login --apikey {{ ibmcloud_api_key }} --no-region
       ibmcloud ks cluster config -c {{ roks_cluster_id }} --admin

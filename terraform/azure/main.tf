@@ -251,6 +251,8 @@ module "openshift" {
     case_inventory_setup                    = var.case_inventory_setup
     registry_password                       = random_password.registry_password.result
     platform                                = var.cloud_platform
+    mirror_olm                              = var.openshift_mirror_olm
+    mirror_platform                         = var.openshift_mirror_platform
   })
 }
 

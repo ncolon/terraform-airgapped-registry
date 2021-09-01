@@ -4,6 +4,12 @@ registry
 
 [all:vars]
 ansible_user=${username}
+azure_subscription_id=${azure_subscription_id}
+azure_tenant_id=${azure_tenant_id}
+azure_client_id=${azure_client_id}
+azure_client_secret=${azure_client_secret}
+azure_region=${azure_region}
+
 ansible_ssh_common_args='-o StrictHostKeyChecking=no -o IdentitiesOnly=yes'
 ansible_ssh_private_key_file="~/.ssh/id_rsa"
 openshift_architecture=${openshift_architecture}
@@ -36,6 +42,9 @@ case_version=${case_version}
 case_inventory_setup=${case_inventory_setup}
 registry_password=${registry_password}
 platform=${platform}
+mirror_olm=${mirror_olm}
+mirror_platform=${mirror_platform}
+
 
 
 [bastion]

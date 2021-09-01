@@ -1,6 +1,6 @@
 - name: set_fact kubeconfig azure
   set_fact:
-    KUBECONFIG: "{{ cluster_dir.path }}/auth/kubeconfig"
+    KUBECONFIG: "/home/{{ ansible_user }}/cluster/auth/kubeconfig"
   when: platform == "azure"
 
 - name: set_fact kubeconfig roks
@@ -15,7 +15,6 @@
     mode: '0755'
     owner: "{{ ansible_user }}"
     group: "{{ ansible_user }}"
-  register: cluster_dir
 
 - name: create registry-ca-bundle configmap on ROKS
   template: 

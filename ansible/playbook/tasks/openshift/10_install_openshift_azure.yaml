@@ -5,7 +5,6 @@
     mode: '0755'
     owner: "{{ ansible_user }}"
     group: "{{ ansible_user }}"
-  register: cluster_dir
 
 - name: extract openshift-install
   shell:
@@ -14,12 +13,12 @@
         -a /home/{{ ansible_user }}/pull-secret.txt \
         --command=openshift-install \
         {{ groups['registry'][0]  }}/ocp4/openshift4:{{ openshift_version }}-{{ openshift_architecture }}
-    chdir: "{{ cluster_dir.path }}"
+    chdir: "/home/{{ ansible_user }}/cluster"
 
 - name: create install-config.yaml
   template:
     src: templates/{{ platform }}_install-config.yaml.j2
-    dest: "{{ cluster_dir.path }}/install-config.yaml"
+    dest: "/home/{{ ansible_user }}/cluster/install-config.yaml"
 
 - name: create .azure folder
   file:
@@ -54,13 +53,13 @@
 
 - name: create openshift manifests
   shell:
-    cmd: "{{ cluster_dir.path }}/openshift-install create manifests --dir {{ cluster_dir.path }} --log-level=debug"
+    cmd: "/home/{{ ansible_user }}/cluster/openshift-install create manifests --dir /home/{{ ansible_user }}/cluster --log-level=debug"
 
 # INSERT YAMLS HERE
     
 - name: deploy openshift cluster
   shell:
-    cmd: "{{ cluster_dir.path }}/openshift-install create cluster --dir {{ cluster_dir.path }} --log-level=debug"
+    cmd: "/home/{{ ansible_user }}/cluster/openshift-install create cluster --dir /home/{{ ansible_user }}/cluster --log-level=debug"
   async: 14400
   poll: 0
   register: deploy_openshift
